@@ -1,5 +1,6 @@
 package com.nover.interactivewebview
 
+import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.Activity
 import android.content.pm.ApplicationInfo
@@ -21,18 +22,18 @@ import org.json.JSONException
 import org.json.JSONObject
 
 
-
+@Suppress("EnumEntryName")
 enum class CallMethod {
     setOptions, evalJavascript, loadHTML, loadUrl
 }
 
-class InteractiveWebviewPlugin(private val activity: Activity): MethodCallHandler {
+class InteractiveWebviewPlugin(activity: Activity) : MethodCallHandler {
 
     companion object {
         lateinit var channel: MethodChannel
 
         @JvmStatic
-        fun registerWith(registrar: Registrar): Unit {
+        fun registerWith(registrar: Registrar) {
             channel = MethodChannel(registrar.messenger(), "interactive_webview")
             channel.setMethodCallHandler(InteractiveWebviewPlugin(registrar.activity()))
         }
@@ -52,17 +53,25 @@ class InteractiveWebviewPlugin(private val activity: Activity): MethodCallHandle
             }
         }
 
+        setWebViewData()
+    }
+
+    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
+    private fun setWebViewData() {
         webView.visibility = View.GONE
         webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccessFromFileURLs = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ECLAIR_MR1) {
+            webView.settings.domStorageEnabled = true
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            webView.settings.allowFileAccessFromFileURLs = true
+        }
         webView.addJavascriptInterface(JsInterface(), "native")
         webView.webViewClient = webClient
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result): Unit {
-        val method = CallMethod.valueOf(call.method)
-        when (method) {
+    override fun onMethodCall(call: MethodCall, result: Result) {
+        when (CallMethod.valueOf(call.method)) {
             CallMethod.setOptions -> setOptions(call)
             CallMethod.evalJavascript -> evalJavascript(call)
             CallMethod.loadHTML -> loadHTML(call)
@@ -104,12 +113,18 @@ class InteractiveWebviewPlugin(private val activity: Activity): MethodCallHandle
     private fun loadUrl(call: MethodCall) {
         (call.arguments as? HashMap<*, *>)?.let { arguments ->
             val url = arguments["url"] as String
-            webView.loadUrl(url)
+            val headers: MutableMap<String, String> = HashMap()
+            if (arguments.containsKey("headers")) {
+                (arguments["headers"] as Map<*, *>).forEach { (k, v) ->
+                    headers[k.toString()] = v.toString()
+                }
+            }
+            webView.loadUrl(url, headers)
         }
     }
 }
 
-class InteractiveWebViewClient(var restrictedSchemes: List<String>): WebViewClient() {
+class InteractiveWebViewClient(var restrictedSchemes: List<String>) : WebViewClient() {
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         val data = hashMapOf<String, Any>()
@@ -138,16 +153,17 @@ class InteractiveWebViewClient(var restrictedSchemes: List<String>): WebViewClie
 
     private fun shouldOverrideUrlLoading(url: String?): Boolean {
         for (l in restrictedSchemes) {
-            if (url != null && url.contains(l))
+            if (url != null && url.contains(l)) {
                 return false
+            }
         }
-
-        return true
+        return false
     }
 }
 
 class JsInterface {
 
+    @Suppress("unused")
     @JavascriptInterface
     fun postMessage(data: String?) {
         data?.let {
