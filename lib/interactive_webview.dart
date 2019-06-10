@@ -24,17 +24,20 @@ class InteractiveWebView {
   Future<Null> _handleMessages(MethodCall call) async {
     switch (call.method) {
       case 'stateChanged':
-        _stateChanged.add(WebViewStateChanged.fromMap(Map<String, dynamic>.from(call.arguments)));
+        _stateChanged.add(WebViewStateChanged.fromMap(
+            Map<String, dynamic>.from(call.arguments)));
         break;
 
       case 'didReceiveMessage':
-        _didReceiveMessage.add(WebkitMessage.fromMap(Map<String, dynamic>.from(call.arguments)));
+        _didReceiveMessage.add(
+            WebkitMessage.fromMap(Map<String, dynamic>.from(call.arguments)));
         break;
     }
   }
 
-  Future<Null> setOptions({List<String> restrictedSchemes, String webkitHandler}) async {
-    final args = <String, dynamic> {
+  Future<Null> setOptions(
+      {List<String> restrictedSchemes, String webkitHandler}) async {
+    final args = <String, dynamic>{
       'restrictedSchemes': restrictedSchemes ?? <String>[],
     };
 
@@ -42,7 +45,7 @@ class InteractiveWebView {
   }
 
   Future<Null> evalJavascript(String script) async {
-    final args = <String, dynamic> {
+    final args = <String, dynamic>{
       'script': script,
     };
 
@@ -50,27 +53,28 @@ class InteractiveWebView {
   }
 
   Future<Null> loadHTML(String html, {String baseUrl}) async {
-    final args = <String, dynamic> {
+    final args = <String, dynamic>{
       'html': html,
     };
 
-    if (baseUrl != null)
-      args['baseUrl'] = baseUrl;
+    if (baseUrl != null) args['baseUrl'] = baseUrl;
 
     await _channel.invokeMethod('loadHTML', args);
   }
 
-  Future<Null> loadUrl(String url) async {
-    final args = <String, dynamic> {
+  Future<Null> loadUrl(
+    String url, {
+    Map<String, String> headers = const {},
+  }) async {
+    final args = <String, dynamic>{
       'url': url,
+      'headers': headers,
     };
-
     await _channel.invokeMethod('loadUrl', args);
   }
 }
 
 class WebViewStateChanged {
-
   final WebViewState type;
   final String url;
 
@@ -92,7 +96,6 @@ class WebViewStateChanged {
 }
 
 class WebkitMessage {
-
   final String name;
   final dynamic data;
 
@@ -102,8 +105,3 @@ class WebkitMessage {
     return WebkitMessage(map["name"], map["data"]);
   }
 }
-
-
-
-
-
