@@ -43,6 +43,8 @@ public class SwiftInteractiveWebviewPlugin: NSObject, FlutterPlugin {
         super.init()
         
         initWebView()
+        
+        print("Initialized!!")
     }
     
     private func initWebView() {
@@ -112,26 +114,27 @@ extension SwiftInteractiveWebviewPlugin {
         
         validateWebView()
         
-        webView.load(URLRequest(url: url))
+        
+        var request = URLRequest(url: url)
+
+        var requestHeaders = [String:String]()
+
+        let headers = arguments["headers"] as? NSDictionary
+
+        if (headers != nil) {
+            headers!.forEach { entry in
+                let (key, value) = entry
+                requestHeaders[String(describing: key)] = String(describing: value)
+            }
+            request.allHTTPHeaderFields = requestHeaders
+        }
+        
+        webView.load(request)
     }
     
     private func validateWebView() {
         if webView.superview == nil {
             UIApplication.shared.keyWindow?.addSubview(webView)
-        }
-    }
-}
-
-extension SwiftInteractiveWebviewPlugin: WKScriptMessageHandler {
-    
-    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let body = message.body as? String else { return }
-        
-        if let data = body.data(using: .utf8),
-            let jsonObj = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) {
-            channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": jsonObj])
-        } else {
-            channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": body])
         }
     }
 }
@@ -149,7 +152,8 @@ extension SwiftInteractiveWebviewPlugin: WKNavigationDelegate {
             // restrict schemes
             for l in restrictedSchemes {
                 if link.contains(l) {
-                    return .cancel
+//                    return .canel
+                    return .allow // My current app needs to follow redirects -> TODO: followRedirects variable
                 }
             }
         }
@@ -157,15 +161,37 @@ extension SwiftInteractiveWebviewPlugin: WKNavigationDelegate {
         return .allow
     }
     
-    public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        channel.invokeMethod("stateChanged", arguments: ["type": "didStart", "url": webView.url!.absoluteString])
+    public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+//        print("commit")
     }
     
-    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    public func webView(_: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+//        print(error.localizedDescription)
+    }
+    
+    public func webView(_: WKWebView, didFinish navigation: WKNavigation!) {
         channel.invokeMethod("stateChanged", arguments: ["type": "didFinish", "url": webView.url!.absoluteString])
     }
+    
+    public func webView(_: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        channel.invokeMethod("stateChanged", arguments: ["type": "didStart", "url": webView.url!.absoluteString])
+    }
+
 }
 
+extension SwiftInteractiveWebviewPlugin: WKScriptMessageHandler {
+    
+    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? String else { return }
+        
+        if let data = body.data(using: .utf8),
+            let jsonObj = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) {
+            channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": jsonObj])
+        } else {
+            channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": body])
+        }
+    }
+}
 
 
 
