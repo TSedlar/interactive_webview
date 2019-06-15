@@ -111,14 +111,23 @@ class InteractiveWebviewPlugin(activity: Activity) : MethodCallHandler {
     }
 
     private fun loadUrl(call: MethodCall) {
+        println("called loadUrl")
         (call.arguments as? HashMap<*, *>)?.let { arguments ->
             val url = arguments["url"] as String
             val headers: MutableMap<String, String> = HashMap()
             if (arguments.containsKey("headers")) {
                 (arguments["headers"] as Map<*, *>).forEach { (k, v) ->
-                    headers[k.toString()] = v.toString()
+                    val headerKey = k.toString()
+                    val headerValue = v.toString()
+
+                    if (headerKey.toLowerCase() == "user-agent") {
+                        webView.settings.userAgentString = headerValue
+                    }
+
+                    headers[headerKey] = headerValue
                 }
             }
+            println("loadUrl: $url")
             webView.loadUrl(url, headers)
         }
     }
