@@ -124,7 +124,19 @@ extension SwiftInteractiveWebviewPlugin {
         if (headers != nil) {
             headers!.forEach { entry in
                 let (key, value) = entry
-                requestHeaders[String(describing: key)] = String(describing: value)
+                              
+                let keyString = String(describing: key)
+                let valString = String(describing: value)
+                
+                if keyString.lowercased() == "user-agent" {
+                    if #available(iOS 9.0, *) {
+                        webView.customUserAgent = valString
+                    } else {
+                        // Fallback on earlier versions
+                    }
+                }
+                
+                requestHeaders[keyString] = valString
             }
             request.allHTTPHeaderFields = requestHeaders
         }
